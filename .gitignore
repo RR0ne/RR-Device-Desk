@@ -1,0 +1,12 @@
+.DS_Store
+.build/
+/dist/
+.env
+.env.*
+*.ipa
+*.imazingapp
+*.p8
+*.p12
+*.key
+*.certSigningRequest
+*.xcuserstate

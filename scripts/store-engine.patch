@@ -1,0 +1,679 @@
+--- a/cmd/constants.go
++++ b/cmd/constants.go
+@@ -1,7 +1,7 @@
+ package cmd
+ 
+ const (
+-	ConfigDirectoryName = ".ipatool"
++	ConfigDirectoryName = "Library/Application Support/RRDeviceDesk/AppStore"
+ 	CookieJarFileName   = "cookies"
+-	KeychainServiceName = "ipatool-auth.service"
++	KeychainServiceName = "local.rrdevicedesk.appstore"
+ )
+--- a/cmd/common.go
++++ b/cmd/common.go
+@@ -1,12 +1,9 @@
+ package cmd
+ 
+ import (
+-	"errors"
+-	"fmt"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+-	"strings"
+ 
+ 	"github.com/byteness/keyring"
+ 	cookiejar "github.com/juju/persistent-cookiejar"
+@@ -59,33 +56,13 @@
+ }
+ 
+ // newKeychain returns a new keychain instance.
+-func newKeychain(stateDirectory string, interactive bool) keychain.Keychain {
++func newKeychain() keychain.Keychain {
+ 	ring := util.Must(openKeyring(keyring.Config{
+ 		AllowedBackends: []keyring.BackendType{
+ 			keyring.KeychainBackend,
+-			keyring.SecretServiceBackend,
+-			keyring.FileBackend,
+ 		},
+ 		ServiceName:              KeychainServiceName,
+ 		KeychainTrustApplication: true,
+-		FileDir:                  stateDirectory,
+-		FilePasswordFunc: func(s string) (string, error) {
+-			if keychainPassphrase == "" && !interactive {
+-				return "", errors.New("keychain passphrase is required when not running in interactive mode; use the \"--keychain-passphrase\" flag")
+-			}
+-
+-			if keychainPassphrase != "" {
+-				return keychainPassphrase, nil
+-			}
+-
+-			path := strings.Split(s, " unlock ")[1]
+-			password, err := readPrompt(fmt.Sprintf("enter passphrase to unlock %s (this is separate from your Apple ID password): ", path), true)
+-			if err != nil {
+-				return "", fmt.Errorf("failed to read password: %w", err)
+-			}
+-
+-			return password, nil
+-		},
+ 	}))
+ 
+ 	return keychain.New(keychain.Args{
+@@ -97,7 +74,6 @@
+ // initWithCommand initializes the dependencies of the command.
+ func initWithCommand(cmd *cobra.Command) {
+ 	verbose := cmd.Flag("verbose").Value.String() == "true"
+-	interactive, _ := cmd.Context().Value(interactiveKey).(bool)
+ 	format := util.Must(OutputFormatFromString(cmd.Flag("format").Value.String()))
+ 
+ 	dependencies.Logger = newLogger(format, verbose)
+@@ -109,7 +85,7 @@
+ 	dependencies.Machine = machine.New(machine.Args{OS: dependencies.OS})
+ 	stateDirectory := util.Must(prepareStateDirectory(dependencies.OS, dependencies.Machine.HomeDirectory()))
+ 	dependencies.CookieJar = newCookieJar(stateDirectory)
+-	dependencies.Keychain = newKeychain(stateDirectory, interactive)
++	dependencies.Keychain = newKeychain()
+ 	dependencies.AppStore = appstore.NewAppStore(appstore.Args{
+ 		CookieJar:       dependencies.CookieJar,
+ 		OperatingSystem: dependencies.OS,
+--- a/cmd/prompt.go
++++ b/cmd/prompt.go
+@@ -12,7 +12,21 @@
+ 	"golang.org/x/term"
+ )
+ 
++var pipeInput = bufio.NewReader(os.Stdin)
++
+ func readPrompt(prompt string, masked bool) (string, error) {
++	// RR Device Desk feeds credentials only on its private stdin pipe.
++	if !term.IsTerminal(int(os.Stdin.Fd())) {
++		if _, err := fmt.Fprintln(os.Stderr, strings.TrimSpace(prompt)); err != nil {
++			return "", err
++		}
++		line, err := pipeInput.ReadString('\n')
++		if err != nil {
++			return "", err
++		}
++		return strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r"), nil
++	}
++
+ 	if masked {
+ 		state, err := term.MakeRaw(int(os.Stdin.Fd()))
+ 		if err != nil {
+--- a/cmd/download.go
++++ b/cmd/download.go
+@@ -53,6 +53,9 @@
+ 
+ 			return retry.Do(func() error {
+ 				if errors.Is(lastErr, appstore.ErrPasswordTokenExpired) {
++					if acc.Password == "" {
++						return lastErr
++					}
+ 					loginResult, err := store.Login(appstore.LoginInput{
+ 						Email:    acc.Email,
+ 						Password: acc.Password,
+--- a/pkg/appstore/appstore_bag.go
++++ b/pkg/appstore/appstore_bag.go
+@@ -8,6 +8,7 @@
+ 	"strconv"
+ 	"strings"
+ 
++	"github.com/majd/ipatool/v2/internal/storeauth"
+ 	"github.com/majd/ipatool/v2/pkg/http"
+ )
+ 
+@@ -72,7 +73,9 @@
+ 
+ // Download endpoints do not require the authentication-specific SAP configuration.
+ func (t *appstore) fetchURLBag(guid string) (urlBag, error) {
+-	res, err := t.bagClient.Send(t.bagRequest(guid))
++	res, err := storeauth.RetryTLSHandshake(func() (http.Result[bagResult], error) {
++		return t.bagClient.Send(t.bagRequest(guid))
++	})
+ 	if err != nil {
+ 		return urlBag{}, fmt.Errorf("failed to send http request: %w", err)
+ 	}
+--- /dev/null
++++ b/internal/storeauth/tls_retry.go
+@@ -0,0 +1,48 @@
++package storeauth
++
++import (
++	"errors"
++	"net/http"
++	"time"
++)
++
++// RetryTLSHandshake is for preparation calls only. A TLS handshake timeout
++// occurs before the HTTP request is sent. Never retry a rejected sign-in here.
++func RetryTLSHandshake[T any](send func() (T, error)) (T, error) {
++	const attempts = 3
++	for attempt := 1; ; attempt++ {
++		result, err := send()
++		if attempt == attempts || !tlsHandshakeTimedOut(err) {
++			return result, err
++		}
++		time.Sleep(250 * time.Millisecond)
++	}
++}
++
++func tlsHandshakeTimedOut(err error) bool {
++	for err != nil {
++		if err.Error() == "net/http: TLS handshake timeout" {
++			return true
++		}
++		err = errors.Unwrap(err)
++	}
++	return false
++}
++
++// Retry an explicit temporary outage once when Apple has not supplied its own
++// wait interval. Only provisioning calls without account credentials use this.
++func retryProvisioning(send func() (*http.Response, error)) (*http.Response, error) {
++	response, err := RetryTLSHandshake(send)
++	if err != nil || response.Header.Get("Retry-After") != "" {
++		return response, err
++	}
++
++	switch response.StatusCode {
++	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
++		response.Body.Close()
++		time.Sleep(time.Second)
++		return RetryTLSHandshake(send)
++	default:
++		return response, nil
++	}
++}
+--- /dev/null
++++ b/internal/storeauth/tls_retry_test.go
+@@ -0,0 +1,97 @@
++package storeauth
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"sync/atomic"
++	"testing"
++)
++
++func TestRetryTLSHandshake(t *testing.T) {
++	timeout := errors.New("net/http: TLS handshake timeout")
++	for _, test := range []struct {
++		name string
++		fail error
++		wantCalls int
++	}{
++		{"handshake", fmt.Errorf("transport: %w", timeout), 3},
++		{"invalid certificate", errors.New("certificate verification failed"), 1},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			calls := 0
++			_, err := RetryTLSHandshake(func() (int, error) {
++				calls++
++				return 0, test.fail
++			})
++			if calls != test.wantCalls || !errors.Is(err, test.fail) {
++				t.Fatalf("got %d calls and %v; want %d calls and %v", calls, err, test.wantCalls, test.fail)
++			}
++		})
++	}
++}
++
++func TestRetryProvisioning(t *testing.T) {
++	for _, test := range []struct {
++		status int
++		retryAfter string
++		want int
++	}{
++		{http.StatusBadGateway, "", http.StatusOK},
++		{http.StatusServiceUnavailable, "", http.StatusOK},
++		{http.StatusGatewayTimeout, "", http.StatusOK},
++		{http.StatusServiceUnavailable, "60", http.StatusServiceUnavailable},
++		{http.StatusUnauthorized, "", http.StatusUnauthorized},
++	} {
++		t.Run(fmt.Sprintf("HTTP %d Retry-After=%s", test.status, test.retryAfter), func(t *testing.T) {
++			calls := 0
++			response, err := retryProvisioning(func() (*http.Response, error) {
++				calls++
++				response := &http.Response{
++					StatusCode: http.StatusOK,
++					Header: make(http.Header),
++					Body: io.NopCloser(strings.NewReader("test")),
++				}
++				if calls == 1 {
++					response.StatusCode = test.status
++					response.Header.Set("Retry-After", test.retryAfter)
++				}
++				return response, nil
++			})
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer response.Body.Close()
++			if response.StatusCode != test.want {
++				t.Fatalf("got HTTP %d; want HTTP %d", response.StatusCode, test.want)
++			}
++		})
++	}
++}
++
++func TestProvisioningReusesConnection(t *testing.T) {
++	var connections atomic.Int32
++	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		_, _ = io.Copy(io.Discard, r.Body)
++		fmt.Fprint(w, "<plist version='1.0'><dict><key>Response</key><dict/></dict></plist>")
++	}))
++	server.Config.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
++		connections.Add(1)
++		return ctx
++	}
++	server.Start()
++	defer server.Close()
++	for _, phase := range []string{"start", "finish"} {
++		if _, err := sendMachineProvisioning(context.Background(), server.Client(), server.URL+"/"+phase, make([]byte, 16), map[string]any{}); err != nil {
++			t.Fatal(err)
++		}
++	}
++	if got := connections.Load(); got != 1 {
++		t.Fatalf("used %d connections; want one", got)
++	}
++}
+--- a/pkg/appstore/appstore_native_login.go
++++ b/pkg/appstore/appstore_native_login.go
+@@ -12,9 +12,18 @@
+ 
+ const anisetteKeychainKey = "anisette-v4"
+ 
+-func (t *appstore) nativeLogin(input LoginInput) (LoginOutput, error) {
++func (t *appstore) nativeLogin(input LoginInput, read func() (string, string, error)) (LoginOutput, error) {
+ 	t.authStateMu.Lock()
+ 	defer t.authStateMu.Unlock()
++	loadCredentials := func() error {
++		if read == nil {
++			return nil
++		}
++		var err error
++		input.Email, input.Password, err = read()
++		read = nil
++		return err
++	}
+ 	if len(t.anisetteState) == 0 && t.keychain != nil {
+ 		t.anisetteState, _ = t.keychain.Get(anisetteKeychainKey)
+ 	}
+@@ -32,6 +41,9 @@
+ 		return LoginOutput{}, fmt.Errorf("get Store authentication bag: %w", err)
+ 	}
+ 	if len(t.anisetteState) != 0 {
++		if err := loadCredentials(); err != nil {
++			return LoginOutput{}, err
++		}
+ 		proof, state, proofErr := storeauth.StoreAMDHeaders(ctx, t.anisetteState, bag.AuthEndpoint, hardwareID)
+ 		if proofErr == nil {
+ 			if err = t.keychain.Set(anisetteKeychainKey, state); err != nil {
+@@ -47,7 +59,7 @@
+ 			return t.legacyLogin(input)
+ 		}
+ 	}
+-	headers, state, err := storeauth.AnisetteHeaders(ctx, t.authHTTP, t.anisetteState)
++	headers, state, err := storeauth.AnisetteHeaders(ctx, t.authHTTP, t.anisetteState, loadCredentials)
+ 	if err != nil {
+ 		return LoginOutput{}, fmt.Errorf("prepare Apple authentication: %w", err)
+ 	}
+--- a/internal/storeauth/anisette.go
++++ b/internal/storeauth/anisette.go
+@@ -41,7 +41,7 @@
+ 
+ // AnisetteHeaders provisions a local software identity when necessary and
+ // returns a fresh machine-validation proof.
+-func AnisetteHeaders(ctx context.Context, client *http.Client, encoded []byte) (http.Header, []byte, error) {
++func AnisetteHeaders(ctx context.Context, client *http.Client, encoded []byte, ready func() error) (http.Header, []byte, error) {
+ 	if ctx == nil {
+ 		return nil, nil, errors.New("anisette context is nil")
+ 	}
+@@ -74,6 +74,10 @@
+ 		return nil, nil, err
+ 	}
+ 
++	if err := ready(); err != nil {
++		return nil, nil, err
++	}
++
+ 	mid, otp, err := adi.RequestOTP(machineDSID)
+ 	if err != nil {
+ 		return nil, nil, fmt.Errorf("generate anisette proof: %w", err)
+@@ -95,7 +99,7 @@
+ func provisionMachine(ctx context.Context, client *http.Client, state *anisetteState, adi *machine.ModernADI) error {
+ 	start, err := sendMachineProvisioning(ctx, client, machineStartURL, state.Identifier, map[string]any{})
+ 	if err != nil {
+-		return err
++		return fmt.Errorf("start machine provisioning: %w", err)
+ 	}
+ 
+ 	spim, err := decodeProvisioningField(start, "spim")
+@@ -112,7 +116,7 @@
+ 		"cpim": base64.StdEncoding.EncodeToString(cpim),
+ 	})
+ 	if err != nil {
+-		return err
++		return fmt.Errorf("finish machine provisioning: %w", err)
+ 	}
+ 
+ 	ptm, err := decodeProvisioningField(finish, "ptm")
+@@ -158,7 +162,6 @@
+ 			return nil, fmt.Errorf("create anisette provisioning request: %w", requestErr)
+ 		}
+ 		request.Header.Set("Accept", "*/*")
+-		request.Header.Set("Connection", "close")
+ 		request.Header.Set("Content-Type", "text/x-xml-plist")
+ 		request.Header.Set("User-Agent", anisetteUserAgent)
+ 		request.Header.Set("X-Apple-I-MD-LU", localUserID)
+@@ -168,25 +171,28 @@
+ 		return client.Do(request)
+ 	}
+ 
+-	response, err := send()
++	response, err := retryProvisioning(send)
+ 	if isUnknownAuthority(err) {
+ 		if rootErr := installAppleRoot(ctx, client); rootErr != nil {
+ 			return nil, fmt.Errorf("install Apple provisioning root: %w", rootErr)
+ 		}
+ 
+-		response, err = send()
++		response, err = retryProvisioning(send)
+ 	}
+ 	if err != nil {
+ 		return nil, fmt.Errorf("send anisette provisioning request: %w", err)
+ 	}
+ 	defer response.Body.Close()
+ 
++	if response.StatusCode != http.StatusOK {
++		return nil, provisioningFailure(response)
++	}
+ 	data, err := io.ReadAll(io.LimitReader(response.Body, anisetteLimit+1))
+ 	if err != nil {
+ 		return nil, fmt.Errorf("read anisette provisioning response: %w", err)
+ 	}
+-	if response.StatusCode != http.StatusOK || len(data) > anisetteLimit {
+-		return nil, fmt.Errorf("anisette provisioning returned HTTP %d", response.StatusCode)
++	if len(data) > anisetteLimit {
++		return nil, errors.New("anisette provisioning response exceeds size limit")
+ 	}
+ 
+ 	var envelope machineProvisioningEnvelope
+@@ -277,3 +283,23 @@
+ 
+ 	return true
+ }
++
++// Only the numeric error code is retained from an unsuccessful preparation.
++func provisioningFailure(response *http.Response) error {
++	if response.StatusCode == http.StatusUnauthorized {
++		var body struct {
++			Response struct {
++				Status struct {
++					Code int `plist:"ec"`
++				} `plist:"Status"`
++			} `plist:"Response"`
++		}
++		data, err := io.ReadAll(io.LimitReader(response.Body, 8193))
++		if err == nil && len(data) <= 8192 {
++			if _, err := plist.Unmarshal(data, &body); err == nil && body.Response.Status.Code != 0 {
++				return fmt.Errorf("anisette provisioning returned HTTP %d (Apple code %d)", response.StatusCode, body.Response.Status.Code)
++			}
++		}
++	}
++	return fmt.Errorf("anisette provisioning returned HTTP %d", response.StatusCode)
++}
+--- /dev/null
++++ b/internal/storeauth/provisioning_failure_test.go
+@@ -0,0 +1,19 @@
++package storeauth
++
++import (
++	"io"
++	"net/http"
++	"strings"
++	"testing"
++)
++
++func TestProvisioningFailureRetainsOnlyNumericAppleCode(t *testing.T) {
++	response := &http.Response{
++		StatusCode: http.StatusUnauthorized,
++		Body: io.NopCloser(strings.NewReader("<plist version='1.0'><dict><key>Response</key><dict><key>Status</key><dict><key>ec</key><integer>-27677</integer><key>em</key><string>private-reply</string></dict></dict></dict></plist>")),
++	}
++	err := provisioningFailure(response)
++	if got := err.Error(); got != "anisette provisioning returned HTTP 401 (Apple code -27677)" {
++		t.Errorf("unexpected safe diagnostic: %s", got)
++	}
++}
+--- a/pkg/appstore/appstore_login.go
++++ b/pkg/appstore/appstore_login.go
+@@ -39,6 +39,14 @@
+ 	maxAuthenticationRetryDelay      = 30 * time.Second
+ )
+ 
++// VerificationFallback carries only the status from the generic configuration login reply.
++type VerificationFallback struct {
++	HTTPStatus int
++}
++
++func (e *VerificationFallback) Error() string { return ErrAuthCodeRequired.Error() }
++func (e *VerificationFallback) Unwrap() error { return ErrAuthCodeRequired }
++
+ type LoginInput struct {
+ 	Email    string
+ 	Password string
+@@ -54,9 +62,22 @@
+ 
+ func (t *appstore) Login(input LoginInput) (LoginOutput, error) {
+ 	if t.authBackend != nil {
+-		return t.nativeLogin(input)
+-	}
+-
++		return t.nativeLogin(input, nil)
++	}
++
++	return t.legacyLogin(input)
++}
++
++// LoginWithDeferredCredentials starts device preparation before requesting account data.
++func (t *appstore) LoginWithDeferredCredentials(input LoginInput, read func() (string, string, error)) (LoginOutput, error) {
++	if t.authBackend != nil {
++		return t.nativeLogin(input, read)
++	}
++	var err error
++	input.Email, input.Password, err = read()
++	if err != nil {
++		return LoginOutput{}, err
++	}
+ 	return t.legacyLogin(input)
+ }
+ 
+@@ -270,7 +291,6 @@
+ 		PasswordToken:       res.Data.PasswordToken,
+ 		DirectoryServicesID: directoryServicesID,
+ 		StoreFront:          sf,
+-		Password:            password,
+ 		Pod:                 pod,
+ 	}
+ 
+@@ -419,7 +439,7 @@
+ 		retry = true
+ 	} else if res.Data.FailureType == "" && res.Data.CustomerMessage == CustomerMessageBadLogin {
+ 		if authCode == "" {
+-			err = ErrAuthCodeRequired
++			err = &VerificationFallback{HTTPStatus: res.StatusCode}
+ 		} else {
+ 			err = errors.New("apple did not complete verification; try a fresh 2FA code")
+ 		}
+--- a/cmd/auth.go
++++ b/cmd/auth.go
+@@ -25,6 +25,7 @@
+ 
+ func loginCmd() *cobra.Command {
+ 	var email, password, authCode string
++	var prepareFirst bool
+ 
+ 	cmd := &cobra.Command{
+ 		Use:   "login",
+@@ -36,24 +37,31 @@
+ 				return errors.New("an Apple ID is required when not running in interactive mode; use the \"--email\" flag")
+ 			}
+ 
+-			if email == "" && interactive {
+-				value, err := readPrompt("enter Apple ID (email address or phone number): ", false)
+-				if err != nil {
+-					return fmt.Errorf("failed to read Apple ID: %w", err)
+-				}
+-				email = value
+-			}
+-
+ 			if password == "" && !interactive {
+ 				return errors.New("password is required when not running in interactive mode; use the \"--password\" flag")
+ 			}
+-
+-			if password == "" && interactive {
+-				value, err := readPrompt("enter password: ", true)
+-				if err != nil {
+-					return fmt.Errorf("failed to read password: %w", err)
++			readCredentials := func() (string, string, error) {
++				if email == "" {
++					value, err := readPrompt("enter Apple ID (email address or phone number): ", false)
++					if err != nil {
++						return "", "", fmt.Errorf("failed to read Apple ID: %w", err)
++					}
++					email = value
+ 				}
+-				password = value
++				if password == "" {
++					value, err := readPrompt("enter password: ", true)
++					if err != nil {
++						return "", "", fmt.Errorf("failed to read password: %w", err)
++					}
++					password = value
++				}
++				return email, password, nil
++			}
++			deferPrompt := prepareFirst && interactive && (email == "" || password == "")
++			if !deferPrompt {
++				if _, _, err := readCredentials(); err != nil {
++					return err
++				}
+ 			}
+ 
+ 			dependencies.Logger.Log().Msg("preparing authentication; the first login may take a few minutes")
+@@ -63,6 +71,10 @@
+ 			// nolint:wrapcheck
+ 			return retry.Do(func() error {
+ 				if errors.Is(lastErr, appstore.ErrAuthCodeRequired) && interactive {
++					var fallback *appstore.VerificationFallback
++					if errors.As(lastErr, &fallback) {
++						dependencies.Logger.Log().Str("event", "verification-fallback").Int("httpStatus", fallback.HTTPStatus).Send()
++					}
+ 					var err error
+ 					authCode, err = readPrompt("enter 2FA code: ", false)
+ 					if err != nil {
+@@ -75,11 +87,21 @@
+ 					Bool("authCodeProvided", authCode != "").
+ 					Msg("logging in")
+ 
+-				output, err := dependencies.AppStore.Login(appstore.LoginInput{
+-					Email:    email,
+-					Password: password,
+-					AuthCode: authCode,
+-				})
++				input := appstore.LoginInput{Email: email, Password: password, AuthCode: authCode}
++				var output appstore.LoginOutput
++				var err error
++				if deferPrompt {
++					lazyStore, ok := dependencies.AppStore.(interface {
++						LoginWithDeferredCredentials(appstore.LoginInput, func() (string, string, error)) (appstore.LoginOutput, error)
++					})
++					if !ok {
++						return errors.New("Store preparation is unavailable in this engine")
++					}
++					output, err = lazyStore.LoginWithDeferredCredentials(input, readCredentials)
++					deferPrompt = false
++				} else {
++					output, err = dependencies.AppStore.Login(input)
++				}
+ 				if err != nil {
+ 					if errors.Is(err, appstore.ErrAuthCodeRequired) && !interactive {
+ 						dependencies.Logger.Log().Msg("2FA code is required; run the command again and supply a code using the `--auth-code` flag")
+@@ -114,6 +136,7 @@
+ 	cmd.Flags().StringVarP(&email, "email", "e", "", "Apple ID email address or phone number (required)")
+ 	cmd.Flags().StringVarP(&password, "password", "p", "", "password for the Apple ID (required)")
+ 	cmd.Flags().StringVar(&authCode, "auth-code", "", "2FA code for the Apple ID")
++	cmd.Flags().BoolVar(&prepareFirst, "prepare-first", false, "Prepare Apple device authentication before requesting credentials")
+ 
+ 	return cmd
+ }
+--- a/pkg/appstore/appstore_login_test.go
++++ b/pkg/appstore/appstore_login_test.go
+@@ -360,7 +360,10 @@
+ 				_, err := as.Login(LoginInput{
+ 					Password: testPassword,
+ 				})
+-				Expect(err).To(Equal(ErrAuthCodeRequired))
++				Expect(errors.Is(err, ErrAuthCodeRequired)).To(BeTrue())
++				var fallback *VerificationFallback
++				Expect(errors.As(err, &fallback)).To(BeTrue())
++				Expect(fallback.HTTPStatus).To(Equal(200))
+ 			})
+ 
+ 			It("reports an incomplete verification when a code was already supplied", func() {
+--- a/cmd/purchases.go
++++ b/cmd/purchases.go
+@@ -13,6 +13,7 @@
+ // nolint:wrapcheck
+ func listPurchasesCmd() *cobra.Command {
+ 	var page, maxResults int
++	var all bool
+ 
+ 	var platformValue string
+ 
+@@ -64,6 +65,7 @@
+ 					Account:  acc,
+ 					Page:     page,
+ 					Limit:    maxResults,
++					All:      all,
+ 					Platform: platform,
+ 				})
+ 				if err != nil {
+@@ -94,6 +96,7 @@
+ 
+ 	cmd.Flags().IntVarP(&maxResults, "max-results", "l", appstore.DefaultOwnedAppsLimit, "maximum number of apps to return per page")
+ 	cmd.Flags().IntVarP(&page, "page", "p", 1, "page of owned apps to return")
++	cmd.Flags().BoolVar(&all, "all", false, "return the entire purchase list in one response")
+ 	cmd.Flags().StringVar(&platformValue, "platform", "", "Filter by platform: iphone (iOS), ipad (iPadOS), appletv (tvOS), visionos, or macos")
+ 
+ 	return cmd
+--- a/pkg/appstore/appstore_owned_apps.go
++++ b/pkg/appstore/appstore_owned_apps.go
+@@ -28,6 +28,7 @@
+ 	Account  Account
+ 	Page     int
+ 	Limit    int
++	All      bool
+ 	Platform Platform
+ }
+ 
+@@ -80,7 +81,10 @@
+ 	}
+ 
+ 	apps = ownedAppsSortedByPurchaseDate(apps)
+-	pageApps := ownedAppsPage(apps, input.Page, input.Limit)
++	pageApps := apps
++	if !input.All {
++		pageApps = ownedAppsPage(apps, input.Page, input.Limit)
++	}
+ 	output := OwnedAppsOutput{
+ 		Count:      len(pageApps),
+ 		TotalCount: len(apps),

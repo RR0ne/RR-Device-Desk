@@ -1,0 +1,563 @@
+--- a/go.mod
++++ b/go.mod
+@@ -12,7 +12,7 @@
+ 	github.com/ebitengine/purego v0.10.2
+ 	github.com/go-compressions/lzfse v0.3.0
+ 	github.com/juju/persistent-cookiejar v1.0.0
+-	github.com/klauspost/compress v1.18.7
++	github.com/klauspost/compress v1.20.2
+ 	github.com/majd/go-apfs v1.0.29
+ 	github.com/modelcontextprotocol/go-sdk v1.8.0
+ 	github.com/onsi/ginkgo/v2 v2.5.0
+@@ -22,9 +22,9 @@
+ 	github.com/spf13/cobra v1.10.2
+ 	github.com/thediveo/enumflag/v2 v2.0.1
+ 	go.uber.org/mock v0.4.0
+-	golang.org/x/sys v0.48.0
+-	golang.org/x/term v0.46.0
+-	golang.org/x/text v0.42.0
++	golang.org/x/sys v0.50.0
++	golang.org/x/term v0.48.0
++	golang.org/x/text v0.44.0
+ 	howett.net/plist v1.0.1
+ )
+ 
+@@ -84,14 +84,14 @@
+ 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
+ 	go.uber.org/atomic v1.11.0 // indirect
+ 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
+-	golang.org/x/crypto v0.57.0 // indirect
++	golang.org/x/crypto v0.59.0 // indirect
+ 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
+-	golang.org/x/mod v0.41.0 // indirect
+-	golang.org/x/net v0.58.0 // indirect
++	golang.org/x/mod v0.42.0 // indirect
++	golang.org/x/net v0.62.0 // indirect
+ 	golang.org/x/oauth2 v0.35.0 // indirect
+-	golang.org/x/sync v0.23.0 // indirect
++	golang.org/x/sync v0.25.0 // indirect
+ 	golang.org/x/time v0.15.0 // indirect
+-	golang.org/x/tools v0.49.0 // indirect
++	golang.org/x/tools v0.52.0 // indirect
+ 	google.golang.org/protobuf v1.36.11 // indirect
+ 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+ 	gopkg.in/errgo.v1 v1.0.1 // indirect
+--- a/go.sum
++++ b/go.sum
+@@ -110,6 +110,8 @@
+ github.com/juju/persistent-cookiejar v1.0.0/go.mod h1:zrbmo4nBKaiP/Ez3F67ewkMbzGYfXyMvRtbOfuAwG0w=
+ github.com/klauspost/compress v1.18.7 h1:aUyZsS4kH3QTKurYhAOwAHxllVPnOthb3vPfnF1Ehjw=
+ github.com/klauspost/compress v1.18.7/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
++github.com/klauspost/compress v1.20.2 h1:v5tiZvm1KGLyg5d5oXdXe3lsSPrbEUiKoXGia//I7Qo=
++github.com/klauspost/compress v1.20.2/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
+ github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
+ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
+ github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
+@@ -247,20 +249,28 @@
+ golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+ golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=
+ golang.org/x/crypto v0.57.0/go.mod h1:Fdz0i5U6CoizGwLda9DttjSk6qlZo25zYNtR+ycvuZA=
++golang.org/x/crypto v0.59.0 h1:xS2jhqYbzNrpvkWP2YTDf4TJwBy3ykR03i8vFDxEc7c=
++golang.org/x/crypto v0.59.0/go.mod h1:veDyUwATGs3c+vN3VfTbzViMGXeTBk3WyhBOkn+F/4U=
+ golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e h1:+WEEuIdZHnUeJJmEUjyYC2gfUMj69yZXw17EnHg/otA=
+ golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e/go.mod h1:Kr81I6Kryrl9sr8s2FK3vxD90NdsKWRuOIl2O4CvYbA=
+ golang.org/x/mod v0.41.0 h1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=
+ golang.org/x/mod v0.41.0/go.mod h1:Ek9pY8RKWXwsWvd3rQiHYtMqkjSUV+s1Rj7j4H5Ur6o=
++golang.org/x/mod v0.42.0 h1:ICeL3t2L30ljSPHHxDnR4fqVcBt/zR2zJAb9juavmQg=
++golang.org/x/mod v0.42.0/go.mod h1:u5fzIrRInkL8MaO1cbRkUHT64v303YIT5KEqpNr7jRs=
+ golang.org/x/net v0.0.0-20180906233101-161cd47e91fd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
+ golang.org/x/net v0.58.0/go.mod h1:YwCddHnFlT7eLQqVprV19OnhLGtc5xOKgE0RyqgfWAU=
++golang.org/x/net v0.62.0 h1:18ELalfM5+XNRwzM2nYqXsZQ9ByS1uhj2O/U7+5jqRY=
++golang.org/x/net v0.62.0/go.mod h1:WgDCOTH8iwtB66T4/GfI94AHo/hhdb7Hah9NDseQfiI=
+ golang.org/x/oauth2 v0.35.0 h1:Mv2mzuHuZuY2+bkyWXIHMfhNdJAdwW3FuWeCPYN5GVQ=
+ golang.org/x/oauth2 v0.35.0/go.mod h1:lzm5WQJQwKZ3nwavOZ3IS5Aulzxi68dUSgRHujetwEA=
+ golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sync v0.23.0 h1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=
+ golang.org/x/sync v0.23.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0=
++golang.org/x/sync v0.25.0 h1:dJnifr0nMV8/SBnBvdo4eSGGnrc3O4FFx6IqvtLcmRs=
++golang.org/x/sync v0.25.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0=
+ golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+@@ -271,17 +281,25 @@
+ golang.org/x/sys v0.0.0-20220909162455-aba9fc2a8ff2/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/sys v0.48.0 h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=
+ golang.org/x/sys v0.48.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
++golang.org/x/sys v0.50.0 h1:dkKZEFTEKaLr1sjhs0WiKqoi8Jj5nHbS3Njmx1UoMJs=
++golang.org/x/sys v0.50.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
+ golang.org/x/term v0.46.0 h1:3+OXuTbaKDgwk8jTi3aSLHRlmWqHEUDUtxnbFigO4YE=
+ golang.org/x/term v0.46.0/go.mod h1:+K02xbkittuwc0Am4abfA3Fc+XRGXkvBXNO88NCXPoc=
++golang.org/x/term v0.48.0 h1:G6UU1eiSB8nl3DzeUGt7Mg+2SctI8tPS6Z5/mBt6cOk=
++golang.org/x/term v0.48.0/go.mod h1:BRDLHCZr2SUjIeBHHpRyQeC9xzSAVbzY2rvKgafnHf4=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
+ golang.org/x/text v0.42.0 h1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI=
+ golang.org/x/text v0.42.0/go.mod h1:ojzP1Z+2QtioaF8DTtO8K5q7JWVVYwZKenzujK0Zd0E=
++golang.org/x/text v0.44.0 h1:YItdp/mQNGnsmrgpcdA5yQ3bnRxCfo/Tj/iByGW9GGo=
++golang.org/x/text v0.44.0/go.mod h1:S4FR1waQ9LbjQTls97SyRjDaUUVkaM+cXwwuG/G+MwY=
+ golang.org/x/time v0.15.0 h1:bbrp8t3bGUeFOx08pvsMYRTCVSMk89u4tKbNOZbp88U=
+ golang.org/x/time v0.15.0/go.mod h1:Y4YMaQmXwGQZoFaVFk4YpCt4FLQMYKZe9oeV/f4MSno=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+ golang.org/x/tools v0.49.0 h1:3NI7VXzL9+1WZD52Dx2ttoPwD5DWrFGpl9mFZDlmisI=
+ golang.org/x/tools v0.49.0/go.mod h1:SJNXV9DBKT0UbdttsQjbfJlAE/q+y36++zo3uL3N0Oo=
++golang.org/x/tools v0.52.0 h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=
++golang.org/x/tools v0.52.0/go.mod h1:ItcP5UNaVGG+Yc4eIYmaFLNJ4soEopkx5Y2d4lcEurs=
+ google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
+ google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
+ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+--- a/cmd/common.go
++++ b/cmd/common.go
+@@ -1,9 +1,12 @@
+ package cmd
+ 
+ import (
++	"errors"
++	"fmt"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
++	"sync/atomic"
+ 
+ 	"github.com/byteness/keyring"
+ 	cookiejar "github.com/juju/persistent-cookiejar"
+@@ -16,18 +19,20 @@
+ 	"github.com/majd/ipatool/v2/pkg/util/operatingsystem"
+ 	"github.com/rs/zerolog"
+ 	"github.com/spf13/cobra"
++	"golang.org/x/sys/unix"
+ )
+ 
+ var dependencies = Dependencies{}
+ var keychainPassphrase string
+ 
+ type Dependencies struct {
+-	Logger    log.Logger
+-	OS        operatingsystem.OperatingSystem
+-	Machine   machine.Machine
+-	CookieJar http.CookieJar
+-	Keychain  keychain.Keychain
+-	AppStore  appstore.AppStore
++	sessionLock *os.File
++	Logger      log.Logger
++	OS          operatingsystem.OperatingSystem
++	Machine     machine.Machine
++	CookieJar   http.CookieJar
++	Keychain    keychain.Keychain
++	AppStore    appstore.AppStore
+ }
+ 
+ // newLogger returns a new logger instance.
+@@ -50,9 +55,8 @@
+ 
+ // newCookieJar returns a new cookie jar instance.
+ func newCookieJar(stateDirectory string) http.CookieJar {
+-	return util.Must(cookiejar.New(&cookiejar.Options{
+-		Filename: filepath.Join(stateDirectory, CookieJarFileName),
+-	}))
++	path := filepath.Join(stateDirectory, CookieJarFileName)
++	return &sessionCookies{Jar: util.Must(cookiejar.New(&cookiejar.Options{Filename: path})), path: path}
+ }
+ 
+ // newKeychain returns a new keychain instance.
+@@ -71,8 +75,52 @@
+ 	})
+ }
+ 
++// A login keeps intermediate cookies in memory until the store confirms the new account.
++type sessionCookies struct {
++	*cookiejar.Jar
++	path    string
++	pending atomic.Bool
++}
++
++func (j *sessionCookies) Save() error {
++	if j.pending.Load() {
++		return nil
++	}
++	return j.Jar.Save()
++}
++
++func (j *sessionCookies) Clear() error {
++	j.RemoveAll()
++	err := os.Remove(j.path)
++	if errors.Is(err, os.ErrNotExist) {
++		return nil
++	}
++	return err
++}
++
++// Hold a shared lock for ordinary commands, exclusive across a whole session change.
++// The OS releases this lock even when the GUI cancels a child process.
++func lockSession(directory string, exclusive bool) (*os.File, error) {
++	f, err := os.OpenFile(filepath.Join(directory, ".session-lock"), os.O_CREATE|os.O_RDWR, 0600)
++	if err != nil {
++		return nil, err
++	}
++	mode := unix.LOCK_SH
++	if exclusive {
++		mode = unix.LOCK_EX
++	}
++	if err := unix.Flock(int(f.Fd()), mode|unix.LOCK_NB); err != nil {
++		f.Close()
++		if errors.Is(err, unix.EWOULDBLOCK) {
++			return nil, fmt.Errorf("store session is busy: %w", err)
++		}
++		return nil, err
++	}
++	return f, nil
++}
++
+ // initWithCommand initializes the dependencies of the command.
+-func initWithCommand(cmd *cobra.Command) {
++func initWithCommand(cmd *cobra.Command) error {
+ 	verbose := cmd.Flag("verbose").Value.String() == "true"
+ 	format := util.Must(OutputFormatFromString(cmd.Flag("format").Value.String()))
+ 
+@@ -84,7 +132,21 @@
+ 	dependencies.OS = operatingsystem.New()
+ 	dependencies.Machine = machine.New(machine.Args{OS: dependencies.OS})
+ 	stateDirectory := util.Must(prepareStateDirectory(dependencies.OS, dependencies.Machine.HomeDirectory()))
++	login := cmd.Name() == "login"
++	transition := login || cmd.Name() == "revoke"
++	lock, err := lockSession(stateDirectory, transition)
++	if err != nil {
++		return err
++	}
++	dependencies.sessionLock = lock
++	// Discard even an unreadable previous cookie jar during an explicit reset.
++	if transition {
++		if err := os.Remove(filepath.Join(stateDirectory, CookieJarFileName)); err != nil && !errors.Is(err, os.ErrNotExist) {
++			return err
++		}
++	}
+ 	dependencies.CookieJar = newCookieJar(stateDirectory)
++
+ 	dependencies.Keychain = newKeychain()
+ 	dependencies.AppStore = appstore.NewAppStore(appstore.Args{
+ 		CookieJar:       dependencies.CookieJar,
+@@ -92,4 +154,13 @@
+ 		Keychain:        dependencies.Keychain,
+ 		Machine:         dependencies.Machine,
+ 	})
++	if login {
++		return beginStoreLogin(dependencies.AppStore, dependencies.CookieJar.(*sessionCookies))
++	}
++	return nil
+ }
++
++func beginStoreLogin(store appstore.AppStore, jar *sessionCookies) error {
++	jar.pending.Store(true)
++	return store.Revoke()
++}
+--- a/cmd/root.go
++++ b/cmd/root.go
+@@ -2,10 +2,9 @@
+ 
+ import (
+ 	"context"
+-	"errors"
+-	"reflect"
++	"fmt"
++	"os"
+ 
+-	"github.com/majd/ipatool/v2/pkg/appstore"
+ 	"github.com/spf13/cobra"
+ 	"github.com/thediveo/enumflag/v2"
+ )
+@@ -29,10 +28,10 @@
+ 		SilenceErrors: true,
+ 		SilenceUsage:  true,
+ 		Version:       version,
+-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
++		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+ 			ctx := context.WithValue(context.Background(), interactiveKey, !nonInteractive)
+ 			cmd.SetContext(ctx)
+-			initWithCommand(cmd)
++			return initWithCommand(cmd)
+ 		},
+ 	}
+ 
+@@ -60,23 +59,20 @@
+ // Execute runs the program and returns the appropriate exit status code.
+ func Execute() int {
+ 	cmd := rootCmd()
++	defer func() {
++		if dependencies.sessionLock != nil {
++			dependencies.sessionLock.Close()
++			dependencies.sessionLock = nil
++		}
++	}()
+ 	err := cmd.Execute()
+ 
+ 	if err != nil {
+-		if reflect.ValueOf(dependencies).IsZero() {
+-			initWithCommand(cmd)
++		if dependencies.Logger == nil {
++			fmt.Fprintln(os.Stderr, err)
++			return 1
+ 		}
+-
+-		var appstoreErr *appstore.Error
+-		if errors.As(err, &appstoreErr) {
+-			dependencies.Logger.Verbose().Stack().
+-				Err(err).
+-				Interface("metadata", appstoreErr.Metadata).
+-				Send()
+-		} else {
+-			dependencies.Logger.Verbose().Stack().Err(err).Send()
+-		}
+-
++		// Raw store metadata can contain authentication headers and account data.
+ 		dependencies.Logger.Error().
+ 			Err(err).
+ 			Bool("success", false).
+--- a/cmd/mcp.go
++++ b/cmd/mcp.go
+@@ -19,9 +19,9 @@
+ 			"Authenticate with 'ipatool auth login' before using the tools.\n" +
+ 			"Runs non-interactively; authentication tools are not exposed.",
+ 		Args: cobra.NoArgs,
+-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
++		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+ 			cmd.SetContext(context.WithValue(cmd.Context(), interactiveKey, false))
+-			initWithCommand(cmd)
++			return initWithCommand(cmd)
+ 		},
+ 		RunE: func(cmd *cobra.Command, args []string) error {
+ 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
+--- a/cmd/auth.go
++++ b/cmd/auth.go
+@@ -30,7 +30,12 @@
+ 	cmd := &cobra.Command{
+ 		Use:   "login",
+ 		Short: "Login to the App Store",
+-		RunE: func(cmd *cobra.Command, args []string) error {
++		RunE: func(cmd *cobra.Command, args []string) (runErr error) {
++			defer func() {
++				if jar, ok := dependencies.CookieJar.(*sessionCookies); ok && jar.pending.Swap(false) {
++					runErr = errors.Join(runErr, dependencies.AppStore.Revoke())
++				}
++			}()
+ 			interactive := cmd.Context().Value(interactiveKey).(bool)
+ 
+ 			if email == "" && !interactive {
+@@ -112,6 +117,11 @@
+ 					return err
+ 				}
+ 
++				if jar, ok := dependencies.CookieJar.(*sessionCookies); ok && jar.pending.Swap(false) {
++					if err := jar.Save(); err != nil {
++						return errors.Join(err, dependencies.AppStore.Revoke())
++					}
++				}
+ 				dependencies.Logger.Log().
+ 					Str("name", output.Account.Name).
+ 					Str("email", output.Account.Email).
+--- a/cmd/auth_test.go
++++ b/cmd/auth_test.go
+@@ -1,6 +1,7 @@
+ package cmd
+ 
+ import (
++	"bufio"
+ 	"context"
+ 	"os"
+ 	"path/filepath"
+@@ -64,6 +65,9 @@
+ 
+ 		previousStdin, previousStderr := os.Stdin, os.Stderr
+ 		os.Stdin, os.Stderr = stdin, stderr
++		old := pipeInput
++		pipeInput = bufio.NewReader(stdin)
++		DeferCleanup(func() { pipeInput = old })
+ 		DeferCleanup(func() { os.Stdin, os.Stderr = previousStdin, previousStderr })
+ 
+ 		cmd := loginCmd()
+@@ -84,11 +88,11 @@
+ 
+ 		prompt, err := os.ReadFile(stderr.Name())
+ 		Expect(err).NotTo(HaveOccurred())
+-		Expect(string(prompt)).To(Equal("enter Apple ID (email address or phone number): "))
++		Expect(string(prompt)).To(Equal("enter Apple ID (email address or phone number):\n"))
+ 	},
+ 		Entry("reads email without requiring a terminal", "user@example.com\n", "user@example.com", ""),
+ 		Entry("reads a phone number without requiring a terminal", "+91 91234-56789\n", "+91 91234-56789", ""),
+-		Entry("reports input errors", "", "", "failed to read Apple ID: failed to read input: EOF"),
++		Entry("reports input errors", "", "", "failed to read Apple ID: EOF"),
+ 	)
+ })
+ 
+--- a/cmd/download_test.go
++++ b/cmd/download_test.go
+@@ -153,8 +153,19 @@
+ 		Entry("watchOS", appstore.PlatformWatchOS),
+ 	)
+ 
++	It("requires an explicit login when a saved account has no reusable password", func() {
++		store := &fakeDownloadAppStore{downloadErrors: []error{appstore.ErrPasswordTokenExpired}}
++		command := downloadCmdWithAppStore(func() appstore.AppStore { return store })
++		command.SetArgs([]string{"--app-id", "42"})
++		command.SetContext(context.WithValue(context.Background(), interactiveKey, false))
++		Expect(command.Execute()).To(MatchError(appstore.ErrPasswordTokenExpired))
++		Expect(store.loginInputs).To(BeEmpty())
++		Expect(store.purchaseInputs).To(BeEmpty())
++	})
++
+ 	It("retains the pending automatic purchase after refreshing authentication", func() {
+ 		store := &fakeDownloadAppStore{
++			account:        appstore.Account{Password: "synthetic-only"},
+ 			downloadErrors: []error{appstore.ErrLicenseRequired, nil},
+ 			purchaseErrors: []error{appstore.ErrPasswordTokenExpired, nil},
+ 		}
+--- /dev/null
++++ b/cmd/rr_session_test.go
+@@ -0,0 +1,93 @@
++package cmd
++
++import (
++	"errors"
++	"github.com/majd/ipatool/v2/pkg/appstore"
++	"github.com/majd/ipatool/v2/pkg/keychain"
++	"net/http"
++	"net/url"
++	"os"
++	"path/filepath"
++	"testing"
++	"time"
++)
++
++type sessionTestRing struct {
++	keychain.Keychain
++	deleted map[string]bool
++}
++
++func (r sessionTestRing) Remove(key string) error { r.deleted[key] = true; return nil }
++
++func TestRRLogoutAndAccountSwitch(t *testing.T) {
++	for _, switching := range []bool{false, true} {
++		dir := t.TempDir()
++		u, _ := url.Parse("https://example.invalid")
++		old := newCookieJar(dir)
++		old.SetCookies(u, []*http.Cookie{{Name: "marker", Value: "old", Path: "/", Expires: time.Now().Add(time.Hour)}})
++		if err := old.Save(); err != nil {
++			t.Fatal(err)
++		}
++		jar := newCookieJar(dir).(*sessionCookies)
++		if len(jar.Cookies(u)) != 1 {
++			t.Fatal("missing seeded on-disk cookie")
++		}
++		ring := sessionTestRing{deleted: map[string]bool{}}
++		store := appstore.NewAppStore(appstore.Args{CookieJar: jar, Keychain: ring})
++		var err error
++		if switching {
++			err = beginStoreLogin(store, jar)
++		} else {
++			err = store.Revoke()
++		}
++		if err != nil || !ring.deleted["account"] || len(jar.Cookies(u)) != 0 || len(newCookieJar(dir).Cookies(u)) != 0 {
++			t.Fatal("previous session survived", err)
++		}
++		if switching {
++			jar.SetCookies(u, []*http.Cookie{{Name: "marker", Value: "new", Path: "/", Expires: time.Now().Add(time.Hour)}})
++			if err := jar.Save(); err != nil {
++				t.Fatal(err)
++			}
++			if len(newCookieJar(dir).Cookies(u)) != 0 {
++				t.Fatal("incomplete login was persisted")
++			}
++			jar.pending.Store(false)
++			if err := jar.Save(); err != nil {
++				t.Fatal(err)
++			}
++			saved := newCookieJar(dir).Cookies(u)
++			if len(saved) != 1 || saved[0].Value != "new" {
++				t.Fatal("wrong session after login")
++			}
++		}
++	}
++}
++func TestRRCookieCleanupErrorAndLock(t *testing.T) {
++	dir := t.TempDir()
++	shared, err := lockSession(dir, false)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if exclusive, err := lockSession(dir, true); err == nil {
++		exclusive.Close()
++		t.Fatal("transition raced active command")
++	}
++	shared.Close()
++	lock, err := lockSession(dir, true)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer lock.Close()
++	jar := newCookieJar(dir)
++	f := filepath.Join(dir, CookieJarFileName)
++	if err := os.Mkdir(f, 0700); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(f, "occupied"), nil, 0600); err != nil {
++		t.Fatal(err)
++	}
++	store := appstore.NewAppStore(appstore.Args{CookieJar: jar, Keychain: sessionTestRing{deleted: map[string]bool{}}})
++	if err := store.Revoke(); err == nil || errors.Is(err, os.ErrNotExist) {
++		t.Fatal("lost cleanup error", err)
++	}
++}
+--- a/pkg/appstore/appstore.go
++++ b/pkg/appstore/appstore.go
+@@ -43,6 +43,7 @@
+ }
+ 
+ type appstore struct {
++	sessionCookies         http.CookieJar
+ 	keychain               keychain.Keychain
+ 	loginClient            http.Client[loginResult]
+ 	searchClient           http.Client[searchResult]
+@@ -97,6 +98,7 @@
+ 	}
+ 
+ 	return &appstore{
++		sessionCookies:      args.CookieJar,
+ 		keychain:            args.Keychain,
+ 		loginClient:         http.NewClient[loginResult](http.Args{CookieJar: args.CookieJar, Authentication: true, Executor: backend.Client("authenticate")}),
+ 		searchClient:        http.NewClient[searchResult](clientArgs),
+--- a/pkg/appstore/appstore_revoke.go
++++ b/pkg/appstore/appstore_revoke.go
+@@ -9,7 +9,14 @@
+ )
+ 
+ func (t *appstore) Revoke() error {
++	var cookieErr error
++	if jar, ok := t.sessionCookies.(interface{ Clear() error }); ok {
++		cookieErr = jar.Clear()
++	}
+ 	accountErr := t.keychain.Remove("account")
++	if errors.Is(accountErr, keyring.ErrKeyNotFound) || errors.Is(accountErr, fs.ErrNotExist) {
++		accountErr = nil
++	}
+ 	if accountErr != nil {
+ 		accountErr = fmt.Errorf("failed to remove account from keychain: %w", accountErr)
+ 	}
+@@ -26,5 +33,5 @@
+ 		cacheErr = fmt.Errorf("failed to remove kbsync cache from keychain: %w", cacheErr)
+ 	}
+ 
+-	return errors.Join(accountErr, cacheErr)
++	return errors.Join(cookieErr, accountErr, cacheErr)
+ }
+--- a/pkg/appstore/appstore_login_test.go
++++ b/pkg/appstore/appstore_login_test.go
+@@ -469,7 +469,7 @@
+ 								Name:                fmt.Sprintf("%s %s", testFirstName, testLastName),
+ 								Email:               testEmail,
+ 								PasswordToken:       testPasswordToken,
+-								Password:            testPassword,
++								Password:            "",
+ 								DirectoryServicesID: testDirectoryServicesID,
+ 								StoreFront:          testStoreFront,
+ 								Pod:                 testPod,
